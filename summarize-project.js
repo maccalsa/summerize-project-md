@@ -3,72 +3,114 @@
 const fs = require("fs");
 const path = require("path");
 
-const CONFIG = {
-  includeExtensions: [".ts", ".tsx", ".js", ".jsx", ".svelte", ".md", ".json"],
-  excludeDirs: ["node_modules", ".git", "dist", "build", ".next"],
-  maxFileSizeKB: 32, // Only include content for files smaller than this
-  output: "project-summary.md",
-};
+// --- CLI ARGUMENT PARSING ---
+const args = process.argv.slice(2);
 
-function walk(dir, callback, base = dir) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (let entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (!CONFIG.excludeDirs.includes(entry.name)) {
-        walk(fullPath, callback, base);
-      }
-    } else {
-      callback(fullPath, path.relative(base, fullPath));
-    }
-  }
+function getFlagValue(flag, defaultVal) {
+  const index = args.indexOf(flag);
+  return index !== -1 ? args[index + 1] : defaultVal;
 }
 
+function getFlagList(flag, defaultVal) {
+  const val = getFlagValue(flag, null);
+  return val ? val.split(",").map((s) => s.trim()) : defaultVal;
+}
+
+// --- CONFIG ---
+const CONFIG = {
+  includeExtensions: getFlagList("--ext", [".ts", ".tsx", ".js", ".jsx", ".svelte", ".md", ".json"]),
+  excludeDirs: getFlagList("--exclude", ["node_modules", ".git", "dist", "build", ".next"]),
+  includeDirs: getFlagList("--include", ["."]),
+  maxFileSizeKB: parseInt(getFlagValue("--max-size", "32")),
+  output: getFlagValue("--output", "project-summary.md"),
+};
+
+// --- HELPERS ---
 function formatCodeBlock(content, ext) {
   const lang = ext.replace(/^\./, "") || "txt";
   return `\n\`\`\`${lang}\n${content}\n\`\`\`\n`;
 }
 
-function summarize() {
-  const files = [];
-  const excluded = [];
-  const output = [];
+function indent(level) {
+  return "  ".repeat(level);
+}
 
-  output.push("# Project Summary\n");
+// --- WALK ---
+function walk(dir, base, level = 0, treeOutput = [], fileList = []) {
+  if (!fs.existsSync(dir)) {
+    return;
+  }
+  
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+    a.isDirectory() === b.isDirectory() ? a.name.localeCompare(b.name) : a.isDirectory() ? -1 : 1
+  );
 
-  walk(process.cwd(), (fullPath, relPath) => {
-    const ext = path.extname(relPath);
-    const stat = fs.statSync(fullPath);
+  for (let entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const relPath = path.relative(base, fullPath);
 
-    if (CONFIG.includeExtensions.includes(ext)) {
-      const sizeKB = stat.size / 1024;
-      files.push({ relPath, ext, sizeKB, fullPath });
-    } else {
-      excluded.push(relPath);
-    }
-  });
-
-  for (let file of files) {
-    const { relPath, fullPath, ext, sizeKB } = file;
-    output.push(`## ${relPath}`);
-    if (sizeKB <= CONFIG.maxFileSizeKB) {
-      try {
-        const content = fs.readFileSync(fullPath, "utf-8");
-        output.push(formatCodeBlock(content.trim(), ext));
-      } catch (e) {
-        output.push(`_Error reading file: ${e.message}_\n`);
+    if (entry.isDirectory()) {
+      if (!CONFIG.excludeDirs.includes(entry.name)) {
+        treeOutput.push(`${indent(level)}- ${entry.name}/`);
+        walk(fullPath, base, level + 1, treeOutput, fileList);
       }
     } else {
-      output.push(`_File too large to include inline (${Math.round(sizeKB)}KB)_\n`);
+      const ext = path.extname(entry.name);
+      const stat = fs.statSync(fullPath);
+      const sizeKB = stat.size / 1024;
+
+      const tracked = {
+        relPath,
+        ext,
+        sizeKB,
+        fullPath,
+        include: CONFIG.includeExtensions.includes(ext),
+      };
+
+      fileList.push(tracked);
+      treeOutput.push(`${indent(level)}- ${entry.name}${tracked.include && sizeKB <= CONFIG.maxFileSizeKB ? "" : " (skipped)"}`);
+    }
+  }
+}
+
+// --- MAIN ---
+function summarize() {
+  const treeLines = ["# Project Summary", "## Folder Structure\n"];
+  const fileList = [];
+
+  CONFIG.includeDirs.forEach((d) => {
+    treeLines.push(`\n**${d}**`);
+    walk(path.resolve(d), path.resolve(d), 0, treeLines, fileList);
+  });
+
+  const contentLines = ["\n## Included Files\n"];
+  const excludedFiles = [];
+
+  for (const file of fileList) {
+    if (!file.include) {
+      excludedFiles.push(file.relPath);
+      continue;
+    }
+
+    contentLines.push(`### ${file.relPath}`);
+    if (file.sizeKB <= CONFIG.maxFileSizeKB) {
+      try {
+        const content = fs.readFileSync(file.fullPath, "utf-8");
+        contentLines.push(formatCodeBlock(content.trim(), file.ext));
+      } catch (e) {
+        contentLines.push(`_Error reading file: ${e.message}_\n`);
+      }
+    } else {
+      contentLines.push(`_File too large to include inline (${Math.round(file.sizeKB)}KB)_\n`);
     }
   }
 
-  if (excluded.length) {
-    output.push("\n## Excluded Files\n");
-    excluded.forEach((f) => output.push(`- ${f}`));
+  if (excludedFiles.length) {
+    contentLines.push("\n## Excluded Files (by extension)\n");
+    excludedFiles.forEach((f) => contentLines.push(`- ${f}`));
   }
 
-  fs.writeFileSync(CONFIG.output, output.join("\n"));
+  fs.writeFileSync(CONFIG.output, [...treeLines, ...contentLines].join("\n"));
   console.log(`✅ Project summary written to ${CONFIG.output}`);
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
+import { existsSync, readdirSync, statSync, readFileSync, writeFileSync } from "fs";
+import { join, relative, extname, resolve } from "path";
 
 // --- CLI ARGUMENT PARSING ---
 const args = process.argv.slice(2);
@@ -37,17 +37,17 @@ function indent(level) {
 
 // --- WALK ---
 function walk(dir, base, level = 0, treeOutput = [], fileList = []) {
-  if (!fs.existsSync(dir)) {
+  if (!existsSync(dir)) {
     return;
   }
   
-  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
     a.isDirectory() === b.isDirectory() ? a.name.localeCompare(b.name) : a.isDirectory() ? -1 : 1
   );
 
   for (let entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    const relPath = path.relative(base, fullPath);
+    const fullPath = join(dir, entry.name);
+    const relPath = relative(base, fullPath);
 
     if (entry.isDirectory()) {
       if (!CONFIG.excludeDirs.includes(entry.name)) {
@@ -55,8 +55,8 @@ function walk(dir, base, level = 0, treeOutput = [], fileList = []) {
         walk(fullPath, base, level + 1, treeOutput, fileList);
       }
     } else {
-      const ext = path.extname(entry.name);
-      const stat = fs.statSync(fullPath);
+      const ext = extname(entry.name);
+      const stat = statSync(fullPath);
       const sizeKB = stat.size / 1024;
 
       const tracked = {
@@ -80,7 +80,7 @@ function summarize() {
 
   CONFIG.includeDirs.forEach((d) => {
     treeLines.push(`\n**${d}**`);
-    walk(path.resolve(d), path.resolve(d), 0, treeLines, fileList);
+    walk(resolve(d), resolve(d), 0, treeLines, fileList);
   });
 
   const contentLines = ["\n## Included Files\n"];
@@ -95,7 +95,7 @@ function summarize() {
     contentLines.push(`### ${file.relPath}`);
     if (file.sizeKB <= CONFIG.maxFileSizeKB) {
       try {
-        const content = fs.readFileSync(file.fullPath, "utf-8");
+        const content = readFileSync(file.fullPath, "utf-8");
         contentLines.push(formatCodeBlock(content.trim(), file.ext));
       } catch (e) {
         contentLines.push(`_Error reading file: ${e.message}_\n`);
@@ -110,7 +110,7 @@ function summarize() {
     excludedFiles.forEach((f) => contentLines.push(`- ${f}`));
   }
 
-  fs.writeFileSync(CONFIG.output, [...treeLines, ...contentLines].join("\n"));
+  writeFileSync(CONFIG.output, [...treeLines, ...contentLines].join("\n"));
   console.log(`✅ Project summary written to ${CONFIG.output}`);
 }
 

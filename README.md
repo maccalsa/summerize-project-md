@@ -123,6 +123,19 @@ Perfect for:
 
 ---
 
+## Publishing
+
+To publish a new version, get a token from npm and run:
+
+```bash
+export NPM_TOKEN=<your-token>
+npm run publish
+
+remember to bounce the version number in package.json
+```
+
+
+
 ## 📜 License
 
 MIT © [Stuart MacCallum](https://github.com/maccalsa)

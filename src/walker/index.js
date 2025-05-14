@@ -14,15 +14,12 @@ export class ProjectWalker {
   }
 
   async walk(dir, base, level = 0) {
-    console.log(`DEBUG: Walking directory: ${dir}`);
     if (!this.existsSync || !this.existsSync(dir)) {
-      console.log(`DEBUG: Directory does not exist: ${dir}`);
       return;
     }
 
     // Check cache first
     if (this.dirCache.has(dir)) {
-      console.log(`DEBUG: Using cached entries for: ${dir}`);
       const cached = this.dirCache.get(dir);
       await this.processEntries(cached, dir, base, level);
       return;
@@ -31,7 +28,6 @@ export class ProjectWalker {
     try {
       const entries = this.readdirSync(dir, { withFileTypes: true });
       if (!entries || !Array.isArray(entries)) {
-        console.log(`DEBUG: No entries found in: ${dir}`);
         return;
       }
 
@@ -51,14 +47,12 @@ export class ProjectWalker {
   }
 
   async processEntries(entries, dir, base, level) {
-    console.log(`DEBUG: Processing entries in: ${dir}`);
     const promises = entries.map(async entry => {
       const fullPath = join(dir, entry.name);
       const relPath = relative(base, fullPath);
 
       // Skip if path matches gitignore patterns
       if (GitignoreParser.shouldIgnore(relPath, this.config.gitignorePatterns)) {
-        console.log(`DEBUG: Ignoring path: ${relPath}`);
         return;
       }
 
@@ -66,8 +60,6 @@ export class ProjectWalker {
         if (!this.config.excludeDirs.includes(entry.name)) {
           this.treeOutput.push(`${this.indent(level)}- ${entry.name}/`);
           await this.walk(fullPath, base, level + 1);
-        } else {
-          console.log(`DEBUG: Excluding directory: ${entry.name}`);
         }
       } else {
         const ext = extname(entry.name);
@@ -88,7 +80,6 @@ export class ProjectWalker {
             tracked.include && sizeKB <= this.config.maxFileSizeKB ? '' : ' (skipped)'
           }`
         );
-        console.log(`DEBUG: Added file: ${relPath}`);
       }
     });
 

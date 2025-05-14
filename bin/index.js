@@ -27,16 +27,8 @@ async function summarize() {
     }
     await Promise.all(walkPromises);
 
-    // Debug output
-    console.log('DEBUG: config.includeDirs:', config.includeDirs);
-    console.log('DEBUG: config.excludeDirs:', config.excludeDirs);
-    console.log('DEBUG: config.includeExtensions:', config.includeExtensions);
     const { treeOutput, fileList } = walker.getResults();
-    console.log('DEBUG: treeOutput.length:', treeOutput.length);
-    console.log('DEBUG: fileList.length:', fileList.length);
-    if (fileList.length > 0) {
-      console.log('DEBUG: First file:', fileList[0]);
-    }
+
 
     // Format markdown using worker threads for file reading
     const markdown = await MarkdownFormatter.formatProjectSummary(

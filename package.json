@@ -6,6 +6,7 @@
   "type": "module",
   "private": false,
   "scripts": {
+    "start": "node bin/index.js",
     "npmset": "./npmset.js",
     "publish": "npm publish --access public"
   },
@@ -14,5 +15,8 @@
   },
   "keywords": ["project", "summary", "markdown", "cli"],
   "author": "Stuart MacCallum",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "minimatch": "^9.0.3"
+  }
 }

@@ -31,6 +31,8 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
-    }
+    },
+    "moduleFileExtensions": ["js", "json"],
+    "testMatch": ["**/__tests__/**/*.js", "**/?(*.)+(spec|test).js"]
   }
 }

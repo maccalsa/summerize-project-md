@@ -38,7 +38,8 @@ async function summarize() {
       console.log('DEBUG: First file:', fileList[0]);
     }
 
-    const markdown = MarkdownFormatter.formatProjectSummary(
+    // Format markdown using worker threads for file reading
+    const markdown = await MarkdownFormatter.formatProjectSummary(
       [...treeLines, ...treeOutput],
       fileList,
       config

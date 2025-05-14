@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from 'fs';
+import { writeFileSync, existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import { Config } from '../src/config/index.js';
 import { ProjectWalker } from '../src/walker/index.js';
 import { MarkdownFormatter } from '../src/utils/formatter.js';
 import { GitignoreParser } from '../src/utils/gitignore.js';
 
-function summarize() {
+async function summarize() {
   try {
     // Parse and validate configuration
     const config = Config.fromArgs(process.argv.slice(2));
@@ -19,14 +19,25 @@ function summarize() {
     const treeLines = ['# Project Summary', '## Folder Structure\n'];
 
     // Process each include directory
-    const walker = new ProjectWalker(config);
-    config.includeDirs.forEach(dir => {
+    const walker = new ProjectWalker(config, { existsSync, readdirSync, statSync, readFileSync });
+    const walkPromises = [];
+    for (const dir of config.includeDirs) {
       treeLines.push(`\n**${dir}**`);
-      walker.walk(dir, dir);
-    });
+      walkPromises.push(walker.walk(dir, dir));
+    }
+    await Promise.all(walkPromises);
 
-    // Get results and format markdown
+    // Debug output
+    console.log('DEBUG: config.includeDirs:', config.includeDirs);
+    console.log('DEBUG: config.excludeDirs:', config.excludeDirs);
+    console.log('DEBUG: config.includeExtensions:', config.includeExtensions);
     const { treeOutput, fileList } = walker.getResults();
+    console.log('DEBUG: treeOutput.length:', treeOutput.length);
+    console.log('DEBUG: fileList.length:', fileList.length);
+    if (fileList.length > 0) {
+      console.log('DEBUG: First file:', fileList[0]);
+    }
+
     const markdown = MarkdownFormatter.formatProjectSummary(
       [...treeLines, ...treeOutput],
       fileList,

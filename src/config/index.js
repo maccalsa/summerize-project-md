@@ -1,18 +1,18 @@
-import { existsSync } from 'fs';
 import { resolve } from 'path';
 
 export class Config {
-  constructor() {
+  constructor({ existsSync } = {}) {
     this.includeExtensions = [];
     this.excludeDirs = [];
     this.includeDirs = [];
     this.maxFileSizeKB = 32;
     this.output = 'project-summary.md';
     this.gitignorePatterns = [];
+    this.existsSync = existsSync;
   }
 
-  static fromArgs(args) {
-    const config = new Config();
+  static fromArgs(args, deps = {}) {
+    const config = new Config(deps);
     
     // Parse CLI arguments
     config.includeExtensions = Config.getFlagList(args, '--ext', ['.ts', '.tsx', '.js', '.jsx', '.svelte', '.md', '.json']);
@@ -36,7 +36,7 @@ export class Config {
   }
 
   static getFlagList(args, flag, defaultVal) {
-    const val = Config.getFlagValue(args, null);
+    const val = Config.getFlagValue(args, flag, null);
     return val ? val.split(',').map(s => s.trim()) : defaultVal;
   }
 
@@ -44,7 +44,7 @@ export class Config {
     // Validate include directories
     this.includeDirs = this.includeDirs.map(dir => {
       const resolvedPath = resolve(dir);
-      if (!existsSync(resolvedPath)) {
+      if (this.existsSync && !this.existsSync(resolvedPath)) {
         throw new Error(`Include directory does not exist: ${dir}`);
       }
       return resolvedPath;
@@ -52,7 +52,7 @@ export class Config {
 
     // Validate output directory
     const outputDir = resolve(this.output, '..');
-    if (!existsSync(outputDir)) {
+    if (this.existsSync && !this.existsSync(outputDir)) {
       throw new Error(`Output directory does not exist: ${outputDir}`);
     }
   }

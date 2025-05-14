@@ -9,7 +9,28 @@ export class MarkdownFormatter {
   static formatProjectSummary(treeOutput, fileList, config) {
     const contentLines = ['\n## Included Files\n'];
     const excludedFiles = [];
+    const fileContentCache = new Map();
 
+    // Batch process files that need to be read
+    const filesToRead = fileList.filter(file => 
+      file.include && file.sizeKB <= config.maxFileSizeKB
+    );
+
+    // Read files in batches to avoid memory spikes
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < filesToRead.length; i += BATCH_SIZE) {
+      const batch = filesToRead.slice(i, i + BATCH_SIZE);
+      batch.forEach(file => {
+        try {
+          const content = readFileSync(file.fullPath, 'utf-8');
+          fileContentCache.set(file.relPath, content.trim());
+        } catch (e) {
+          fileContentCache.set(file.relPath, `_Error reading file: ${e.message}_`);
+        }
+      });
+    }
+
+    // Process all files using cached content
     for (const file of fileList) {
       if (!file.include) {
         excludedFiles.push(file.relPath);
@@ -18,12 +39,8 @@ export class MarkdownFormatter {
 
       contentLines.push(`### ${file.relPath}`);
       if (file.sizeKB <= config.maxFileSizeKB) {
-        try {
-          const content = readFileSync(file.fullPath, 'utf-8');
-          contentLines.push(this.formatCodeBlock(content.trim(), file.ext));
-        } catch (e) {
-          contentLines.push(`_Error reading file: ${e.message}_\n`);
-        }
+        const content = fileContentCache.get(file.relPath);
+        contentLines.push(this.formatCodeBlock(content, file.ext));
       } else {
         contentLines.push(`_File too large to include inline (${Math.round(file.sizeKB)}KB)_\n`);
       }

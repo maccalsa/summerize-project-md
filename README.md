@@ -11,6 +11,9 @@
 - 🚫 Skips large or excluded files but lists them clearly
 - ⚙️ Configurable via CLI flags (`--include`, `--exclude`, `--ext`, etc.)
 - 🪄 Output ready to paste into ChatGPT, docs, or PRs
+- 🔄 Parallel file processing using worker threads
+- 🎯 Smart file size and extension filtering
+- 📝 Gitignore pattern support
 
 ---
 
@@ -88,6 +91,21 @@ npx @maccalsa/summarize-project-md \
 
 ---
 
+## 🏗 Project Structure
+
+```
+src/
+├── cli/        # Command-line interface
+├── config/     # Configuration management
+├── utils/      # Utility functions
+│   ├── formatter.js    # Markdown formatting
+│   ├── fileWorker.js   # Parallel file processing
+│   └── gitignore.js    # Gitignore pattern handling
+└── walker/     # Directory traversal
+```
+
+---
+
 ## 🛠 Local Development
 
 To develop locally:
@@ -98,6 +116,12 @@ cd summarize-project-md
 npm install
 npm link
 summarize-project --include src
+```
+
+To run tests:
+
+```bash
+npm test
 ```
 
 ---
@@ -134,7 +158,7 @@ npm run publish
 remember to bounce the version number in package.json
 ```
 
-
+---
 
 ## 📜 License
 

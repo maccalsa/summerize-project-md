@@ -1,6 +1,6 @@
 {
   "name": "@maccalsa/summarize-project-md",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "description": "CLI tool to generate a Markdown summary of your project structure and source files",
   "main": "bin/index.js",
   "type": "module",
